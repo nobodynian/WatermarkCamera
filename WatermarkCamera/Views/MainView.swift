@@ -15,7 +15,6 @@ struct MainView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 预览区域
                 if let image = capturedImage {
                     Image(uiImage: image)
                         .resizable()
@@ -34,7 +33,6 @@ struct MainView: View {
                     .background(Color(UIColor.systemGroupedBackground))
                 }
 
-                // 操作按钮区域
                 VStack(spacing: 12) {
                     Button {
                         showCamera = true

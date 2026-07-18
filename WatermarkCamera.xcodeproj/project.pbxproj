@@ -12,6 +12,7 @@
 		A10003 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
 		A10004 /* PhotoPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
 		A10005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10005; };
+		A10006 /* LocationWeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +23,7 @@
 		B10005 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10007 /* WatermarkCamera.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WatermarkCamera.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10008 /* LocationWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationWeatherService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,6 +50,7 @@
 			children = (
 				D10003 /* App */,
 				D10004 /* Views */,
+				D10006 /* Services */,
 				B10005 /* Assets.xcassets */,
 				B10006 /* Info.plist */,
 			);
@@ -78,6 +81,14 @@
 				B10007 /* WatermarkCamera.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D10006 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B10008 /* LocationWeatherService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -154,6 +165,7 @@
 				A10002 /* MainView.swift in Sources */,
 				A10003 /* CameraView.swift in Sources */,
 				A10004 /* PhotoPreviewView.swift in Sources */,
+				A10006 /* LocationWeatherService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
