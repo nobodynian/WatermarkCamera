@@ -1,115 +1,242 @@
 import SwiftUI
+import UIKit
 
-struct PhotoPreviewView: View {
+struct WatermarkEditView: View {
     let originalImage: UIImage
     @Binding var watermarkDate: Date
     @Binding var locationText: String
-    @Binding var customNote: String
+    @Binding var workContent: String
+    @Binding var weatherText: String
     var onSave: (UIImage) -> Void
     var onDismiss: () -> Void
+    @State private var showPreview = true
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Watermarked image preview
-                Image(uiImage: renderWatermarkedImage())
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black)
+                // 水印预览
+                Image(uiImage: WatermarkRenderer.render(
+                    image: originalImage,
+                    date: watermarkDate,
+                    location: locationText,
+                    workContent: workContent,
+                    weather: weatherText
+                ))
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
 
-                // Settings panel
-                VStack(spacing: 12) {
-                    DatePicker("水印日期时间", selection: $watermarkDate, displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(.compact)
-                        .padding(.horizontal)
-
-                    TextField("地点（可选）", text: $locationText)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
-
-                    TextField("备注（可选）", text: $customNote)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
-
-                    HStack(spacing: 16) {
-                        Button("取消") {
-                            onDismiss()
+                // 编辑面板
+                ScrollView {
+                    VStack(spacing: 14) {
+                        // 拍摄时间
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("拍摄时间")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            DatePicker("", selection: $watermarkDate, displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                                .labelsHidden()
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.gray)
+                        .padding(.horizontal)
 
-                        Button("保存到相册") {
-                            let watermarked = renderWatermarkedImage()
-                            onSave(watermarked)
+                        // 工作内容
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("工作内容")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            TextField("例如：设备巡检、现场记录等", text: $workContent)
+                                .textFieldStyle(.roundedBorder)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .padding(.horizontal)
+
+                        // 天气
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("天气")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            TextField("例如：晴 28°C", text: $weatherText)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        .padding(.horizontal)
+
+                        // 地点
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("地点")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            TextField("例如：XX市·XX项目部", text: $locationText)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        .padding(.horizontal)
+
+                        // 操作按钮
+                        HStack(spacing: 16) {
+                            Button("取消") {
+                                onDismiss()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.gray)
+                            .frame(maxWidth: .infinity)
+
+                            Button("保存到相册") {
+                                let watermarked = WatermarkRenderer.render(
+                                    image: originalImage,
+                                    date: watermarkDate,
+                                    location: locationText,
+                                    workContent: workContent,
+                                    weather: weatherText
+                                )
+                                onSave(watermarked)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
                 }
-                .padding(.top, 12)
                 .background(Color(UIColor.secondarySystemBackground))
             }
             .ignoresSafeArea(.keyboard)
-            .navigationTitle("预览")
+            .navigationTitle("编辑水印")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("关闭") { onDismiss() }
+                }
+            }
         }
     }
+}
 
-    private func renderWatermarkedImage() -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: originalImage.size)
-        return renderer.image { context in
-            // Draw original image
-            originalImage.draw(in: CGRect(origin: .zero, size: originalImage.size))
+// ========== 卡片式水印渲染器 ==========
+struct WatermarkRenderer {
+    static func render(image: UIImage, date: Date, location: String, workContent: String, weather: String) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        return renderer.image { _ in
+            // 绘制原图
+            image.draw(in: CGRect(origin: .zero, size: image.size))
 
-            // Watermark info
+            // 缩放系数
+            let scale = image.size.width / 414.0 // 以 iPhone 宽度为基准
+
+            // 时间格式化
             let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            let dateStr = formatter.string(from: watermarkDate)
+            formatter.dateFormat = "yyyy.MM.dd HH:mm"
+            let dateStr = formatter.string(from: date)
 
-            // Build watermark lines
-            var lines: [String] = [dateStr]
-            if !locationText.isEmpty {
-                lines.append(locationText)
+            // ---- 卡片尺寸 ----
+            let cardWidth: CGFloat = image.size.width * 0.85
+            let headerHeight: CGFloat = 36 * scale
+            let rowHeight: CGFloat = 30 * scale
+            let padding: CGFloat = 12 * scale
+            let labelPadding: CGFloat = 10 * scale
+
+            // 计算卡片高度
+            var rowCount = 3 // 工作内容、拍摄时间、天气
+            if !location.isEmpty { rowCount += 1 }
+            let bodyHeight = rowHeight * CGFloat(rowCount) + padding * 2 + (CGFloat(rowCount) - 1) * 2 * scale
+            let cardHeight = headerHeight + bodyHeight
+
+            // 卡片位置（居中偏上）
+            let cardX = (image.size.width - cardWidth) / 2
+            let cardY = image.size.height * 0.05
+
+            // ---- 绘制卡片背景阴影 ----
+            let shadowRect = CGRect(x: cardX + 2 * scale, y: cardY + 2 * scale, width: cardWidth, height: cardHeight)
+            UIColor.black.withAlphaComponent(0.15).setFill()
+            UIBezierPath(roundedRect: shadowRect, cornerRadius: 10 * scale).fill()
+
+            // ---- 绘制卡片主体 ----
+            let cardRect = CGRect(x: cardX, y: cardY, width: cardWidth, height: cardHeight)
+
+            // 背景色（米白色）
+            UIColor(red: 0.96, green: 0.96, blue: 0.94, alpha: 1.0).setFill()
+            UIBezierPath(roundedRect: cardRect, cornerRadius: 10 * scale).fill()
+
+            // 边框
+            UIColor(red: 0.85, green: 0.85, blue: 0.85, alpha: 1.0).setStroke()
+            UIBezierPath(roundedRect: cardRect, cornerRadius: 10 * scale).stroke()
+
+            // ---- 绘制头部 ----
+            let headerRect = CGRect(x: cardX, y: cardY, width: cardWidth, height: headerHeight)
+            let headerColor = UIColor(red: 0.32, green: 0.35, blue: 0.58, alpha: 1.0) // 深蓝紫色
+            headerColor.setFill()
+
+            // 裁剪头部为圆角顶部
+            let headerPath = UIBezierPath(roundedRect: headerRect, cornerRadius: 10 * scale)
+            headerPath.addClip()
+            headerColor.setFill()
+            UIRectFill(headerRect)
+            // 底部补一个矩形去掉底部圆角
+            UIRectFill(CGRect(x: cardX, y: cardY + headerHeight - 10 * scale, width: cardWidth, height: 10 * scale))
+
+            // 黄色圆点
+            let dotRadius: CGFloat = 4 * scale
+            let dotCenter = CGPoint(x: cardX + padding + dotRadius, y: cardY + headerHeight / 2)
+            UIColor(red: 0.95, green: 0.75, blue: 0.2, alpha: 1.0).setFill()
+            UIBezierPath(ovalIn: CGRect(x: dotCenter.x - dotRadius, y: dotCenter.y - dotRadius, width: dotRadius * 2, height: dotRadius * 2)).fill()
+
+            // 标题文字 "工作记录"
+            let titleFont = UIFont.systemFont(ofSize: 15 * scale, weight: .bold)
+            let titleText = "工作记录" as NSString
+            let titleSize = titleText.size(withAttributes: [.font: titleFont])
+            titleText.draw(at: CGPoint(x: dotCenter.x + dotRadius + 8 * scale, y: cardY + (headerHeight - titleSize.height) / 2), withAttributes: [
+                .font: titleFont,
+                .foregroundColor: UIColor.white
+            ])
+
+            // ---- 绘制内容行 ----
+            let labelFont = UIFont.systemFont(ofSize: 12 * scale, weight: .regular)
+            let valueFont = UIFont.systemFont(ofSize: 12 * scale, weight: .medium)
+            let labelColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
+            let valueColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
+
+            // 标签列宽度（根据最长标签 "拍摄时间" 计算）
+            let labelWidth: CGFloat = 70 * scale
+            let colonWidth: CGFloat = 16 * scale
+            let contentX = cardX + padding + labelWidth + colonWidth + labelPadding
+            let contentWidth = cardWidth - (contentX - cardX) - padding
+
+            func drawRow(y: CGFloat, label: String, value: String) {
+                // 标签（右对齐）
+                let labelText = (label + "：") as NSString
+                labelText.draw(in: CGRect(x: cardX + padding, y: y, width: labelWidth + colonWidth, height: rowHeight), withAttributes: [
+                    .font: labelFont,
+                    .foregroundColor: labelColor,
+                    .paragraphStyle: { let p = NSMutableParagraphStyle(); p.alignment = .right; return p }()
+                ])
+
+                // 内容
+                let valueNSString = value as NSString
+                valueNSString.draw(in: CGRect(x: contentX, y: y, width: contentWidth, height: rowHeight), withAttributes: [
+                    .font: valueFont,
+                    .foregroundColor: valueColor
+                ])
             }
-            if !customNote.isEmpty {
-                lines.append(customNote)
-            }
 
-            let fullText = lines.joined(separator: " | ")
-            let fontSize: CGFloat = originalImage.size.width * 0.03
-            let font = UIFont.systemFont(ofSize: max(fontSize, 12), weight: .medium)
+            var currentY = cardY + headerHeight + padding
 
-            let shadow = NSShadow()
-            shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
-            shadow.shadowOffset = CGSize(width: 1, height: 1)
-            shadow.shadowBlurRadius = 3
+            // 第一行：工作内容
+            drawRow(y: currentY, label: "工作内容", value: workContent.isEmpty ? "未填写" : workContent)
+            currentY += rowHeight + 2 * scale
 
-            let textAttributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: UIColor.white,
-                .shadow: shadow
-            ]
+            // 第二行：拍摄时间
+            drawRow(y: currentY, label: "拍摄时间", value: dateStr)
+            currentY += rowHeight + 2 * scale
 
-            let textWidth = (fullText as NSString).size(withAttributes: textAttributes).width
-            let padding: CGFloat = originalImage.size.width * 0.03
-            let lineHeight = fontSize * 1.5
-            let labelHeight = lineHeight * CGFloat(lines.count) + padding * 2
-            let labelWidth = max(textWidth + padding * 2, originalImage.size.width * 0.4)
-            let labelX: CGFloat = originalImage.size.width - labelWidth - padding
-            let labelY: CGFloat = originalImage.size.height - labelHeight - padding
+            // 第三行：天气
+            drawRow(y: currentY, label: "天气", value: weather.isEmpty ? "未知" : weather)
+            currentY += rowHeight + 2 * scale
 
-            // Draw background rect
-            let bgRect = CGRect(x: labelX, y: labelY, width: labelWidth, height: labelHeight)
-            UIColor.black.withAlphaComponent(0.45).setFill()
-            let path = UIBezierPath(roundedRect: bgRect, cornerRadius: padding * 0.5)
-            path.fill()
-
-            // Draw text lines
-            for (i, line) in lines.enumerated() {
-                let y = labelY + padding + lineHeight * CGFloat(i) + lineHeight * 0.7
-                let rect = CGRect(x: labelX + padding, y: y - fontSize, width: labelWidth - padding * 2, height: fontSize * 1.5)
-                (line as NSString).draw(in: rect, withAttributes: textAttributes)
+            // 第四行：地点（如果有）
+            if !location.isEmpty {
+                drawRow(y: currentY, label: "地点", value: location)
             }
         }
     }

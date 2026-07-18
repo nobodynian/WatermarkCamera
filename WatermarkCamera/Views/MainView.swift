@@ -1,18 +1,22 @@
 import SwiftUI
+import Photos
 
 struct MainView: View {
     @State private var capturedImage: UIImage?
     @State private var showCamera = false
-    @State private var showPhotoPreview = false
+    @State private var showEditView = false
     @State private var watermarkDate = Date()
     @State private var locationText: String = ""
-    @State private var customNote: String = ""
+    @State private var workContent: String = ""
+    @State private var weatherText: String = ""
     @State private var showSaveAlert = false
     @State private var alertMessage: String = ""
+    @State private var hasPhotoLibraryPermission = false
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // 预览区域
                 if let image = capturedImage {
                     Image(uiImage: image)
                         .resizable()
@@ -31,19 +35,8 @@ struct MainView: View {
                     .background(Color(UIColor.systemGroupedBackground))
                 }
 
+                // 操作按钮区域
                 VStack(spacing: 12) {
-                    if showCamera {
-                        CameraView(
-                            capturedImage: $capturedImage,
-                            watermarkText: .constant(""),
-                            watermarkDate: $watermarkDate,
-                            showPhotoPreview: $showPhotoPreview,
-                            locationText: $locationText
-                        )
-                        .frame(height: 0)
-                        .opacity(0)
-                    }
-
                     Button {
                         showCamera = true
                     } label: {
@@ -58,9 +51,9 @@ struct MainView: View {
 
                     if capturedImage != nil {
                         Button {
-                            showPhotoPreview = true
+                            showEditView = true
                         } label: {
-                            Label("编辑水印并保存", systemImage: "text.badge.plus")
+                            Label("编辑水印并保存", systemImage: "doc.text.viewfinder")
                                 .font(.title3)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
@@ -79,23 +72,42 @@ struct MainView: View {
             } message: {
                 Text(alertMessage)
             }
-            .fullScreenCover(isPresented: $showPhotoPreview) {
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraView(
+                    capturedImage: $capturedImage,
+                    watermarkDate: $watermarkDate,
+                    locationText: $locationText,
+                    workContent: $workContent,
+                    weatherText: $weatherText
+                )
+            }
+            .fullScreenCover(isPresented: $showEditView) {
                 if let image = capturedImage {
-                    PhotoPreviewView(
+                    WatermarkEditView(
                         originalImage: image,
                         watermarkDate: $watermarkDate,
                         locationText: $locationText,
-                        customNote: $customNote,
+                        workContent: $workContent,
+                        weatherText: $weatherText,
                         onSave: { watermarked in
                             saveToPhotoLibrary(image: watermarked)
-                            showPhotoPreview = false
+                            showEditView = false
                         },
                         onDismiss: {
-                            showPhotoPreview = false
+                            showEditView = false
                         }
                     )
                 }
             }
+            .onAppear {
+                checkPhotoLibraryPermission()
+            }
+        }
+    }
+
+    private func checkPhotoLibraryPermission() {
+        PHPhotoLibrary.requestAuthorization { status in
+            hasPhotoLibraryPermission = (status == .authorized || status == .limited)
         }
     }
 
