@@ -43,10 +43,10 @@ class LocationWeatherService: NSObject, ObservableObject {
                         parts.append(locality)
                     }
                     if let subAdministrative = place.subAdministrativeArea, !subAdministrative.isEmpty {
-                        parts.append(subAdministrativeArea)
+                        parts.append(subAdministrative)
                     }
-                    if let administrative = place.administrativeArea, !administrativeArea.isEmpty {
-                        parts.append(administrativeArea)
+                    if let administrative = place.administrativeArea, !administrative.isEmpty {
+                        parts.append(administrative)
                     }
                     if parts.isEmpty {
                         parts.append(place.name ?? "未知位置")
@@ -95,7 +95,7 @@ class LocationWeatherService: NSObject, ObservableObject {
         case .partlyCloudy: return "多云"
         case .mostlyCloudy: return "多云"
         case .cloudy: return "阴"
-        case .fog: return "雾"
+        case .blizzard: return "暴风雪"
         case .drizzle: return "小雨"
         case .rain: return "雨"
         case .heavyRain: return "大雨"
