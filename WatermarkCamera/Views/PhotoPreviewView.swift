@@ -80,14 +80,15 @@ struct PhotoPreviewView: View {
             let fontSize: CGFloat = originalImage.size.width * 0.03
             let font = UIFont.systemFont(ofSize: max(fontSize, 12), weight: .medium)
 
+            let shadow = NSShadow()
+            shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
+            shadow.shadowOffset = CGSize(width: 1, height: 1)
+            shadow.shadowBlurRadius = 3
+
             let textAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: UIColor.white,
-                .shadow: NSShadow(
-                    shadowColor: UIColor.black.withAlphaComponent(0.6),
-                    shadowOffset: CGSize(width: 1, height: 1),
-                    shadowBlurRadius: 3
-                )
+                .shadow: shadow
             ]
 
             let textWidth = (fullText as NSString).size(withAttributes: textAttributes).width
