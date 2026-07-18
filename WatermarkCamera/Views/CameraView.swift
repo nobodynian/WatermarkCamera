@@ -7,7 +7,7 @@ struct CameraView: UIViewControllerRepresentable {
     @Binding var locationText: String
     @Binding var workContent: String
     @Binding var weatherText: String
-    @Environment(\.presentationMode) var presentationMode
+    @Binding var isPresented: Bool
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
@@ -32,30 +32,29 @@ struct CameraView: UIViewControllerRepresentable {
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage {
-                // 保存原始方向修正后的图片
                 parent.capturedImage = image.fixedOrientation()
             }
-            picker.dismiss(animated: true) {
-                self.parent.presentationMode.wrappedValue.dismiss()
+            picker.dismiss(animated: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.parent.isPresented = false
             }
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true) {
-                self.parent.presentationMode.wrappedValue.dismiss()
+            picker.dismiss(animated: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.parent.isPresented = false
             }
         }
     }
 }
 
-// 修正图片方向
 extension UIImage {
     func fixedOrientation() -> UIImage {
-        if imageOrientation == .up { return self }
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        draw(in: CGRect(origin: .zero, size: size))
-        let normalized = UIGraphicsGetImageFromCurrentImageContext() ?? self
-        UIGraphicsEndImageContext()
-        return normalized
+        guard imageOrientation != .up else { return self }
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }

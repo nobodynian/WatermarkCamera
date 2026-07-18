@@ -26,6 +26,8 @@
     <string>需要访问相机以拍摄水印照片</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>需要保存照片到相册</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>需要读取相册中的照片</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

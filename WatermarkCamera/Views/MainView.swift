@@ -11,7 +11,6 @@ struct MainView: View {
     @State private var weatherText: String = ""
     @State private var showSaveAlert = false
     @State private var alertMessage: String = ""
-    @State private var hasPhotoLibraryPermission = false
 
     var body: some View {
         NavigationView {
@@ -26,10 +25,10 @@ struct MainView: View {
                     VStack(spacing: 20) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 60))
-                            .foregroundStyle(.gray)
+                            .foregroundColor(.gray)
                         Text("点击下方按钮拍照")
                             .font(.headline)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(UIColor.systemGroupedBackground))
@@ -51,6 +50,7 @@ struct MainView: View {
 
                     if capturedImage != nil {
                         Button {
+                            guard capturedImage != nil else { return }
                             showEditView = true
                         } label: {
                             Label("编辑水印并保存", systemImage: "doc.text.viewfinder")
@@ -78,42 +78,34 @@ struct MainView: View {
                     watermarkDate: $watermarkDate,
                     locationText: $locationText,
                     workContent: $workContent,
-                    weatherText: $weatherText
+                    weatherText: $weatherText,
+                    isPresented: $showCamera
                 )
             }
             .fullScreenCover(isPresented: $showEditView) {
-                if let image = capturedImage {
-                    WatermarkEditView(
-                        originalImage: image,
-                        watermarkDate: $watermarkDate,
-                        locationText: $locationText,
-                        workContent: $workContent,
-                        weatherText: $weatherText,
-                        onSave: { watermarked in
-                            saveToPhotoLibrary(image: watermarked)
-                            showEditView = false
-                        },
-                        onDismiss: {
-                            showEditView = false
-                        }
-                    )
-                }
+                WatermarkEditView(
+                    originalImage: capturedImage ?? UIImage(),
+                    watermarkDate: $watermarkDate,
+                    locationText: $locationText,
+                    workContent: $workContent,
+                    weatherText: $weatherText,
+                    onSave: { watermarked in
+                        saveToPhotoLibrary(image: watermarked)
+                        showEditView = false
+                    },
+                    onDismiss: {
+                        showEditView = false
+                    }
+                )
             }
-            .onAppear {
-                checkPhotoLibraryPermission()
-            }
-        }
-    }
-
-    private func checkPhotoLibraryPermission() {
-        PHPhotoLibrary.requestAuthorization { status in
-            hasPhotoLibraryPermission = (status == .authorized || status == .limited)
         }
     }
 
     private func saveToPhotoLibrary(image: UIImage) {
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        alertMessage = "已保存到相册！"
-        showSaveAlert = true
+        DispatchQueue.main.async {
+            alertMessage = "已保存到相册！"
+            showSaveAlert = true
+        }
     }
 }

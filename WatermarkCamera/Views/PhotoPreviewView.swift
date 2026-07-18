@@ -9,23 +9,22 @@ struct WatermarkEditView: View {
     @Binding var weatherText: String
     var onSave: (UIImage) -> Void
     var onDismiss: () -> Void
-    @State private var showPreview = true
+    @State private var renderedImage: UIImage?
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 水印预览
-                Image(uiImage: WatermarkRenderer.render(
-                    image: originalImage,
-                    date: watermarkDate,
-                    location: locationText,
-                    workContent: workContent,
-                    weather: weatherText
-                ))
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
+                // 水印预览（使用缓存的渲染结果）
+                if let rendered = renderedImage {
+                    Image(uiImage: rendered)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
+                } else {
+                    Color.black
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
 
                 // 编辑面板
                 ScrollView {
@@ -34,7 +33,7 @@ struct WatermarkEditView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("拍摄时间")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(.secondary)
                             DatePicker("", selection: $watermarkDate, displayedComponents: [.date, .hourAndMinute])
                                 .datePickerStyle(.compact)
                                 .labelsHidden()
@@ -45,7 +44,7 @@ struct WatermarkEditView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("工作内容")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(.secondary)
                             TextField("例如：设备巡检、现场记录等", text: $workContent)
                                 .textFieldStyle(.roundedBorder)
                         }
@@ -55,8 +54,8 @@ struct WatermarkEditView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("天气")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            TextField("例如：晴 28°C", text: $weatherText)
+                                .foregroundColor(.secondary)
+                            TextField("例如：晴 28\u{00B0}C", text: $weatherText)
                                 .textFieldStyle(.roundedBorder)
                         }
                         .padding(.horizontal)
@@ -65,7 +64,7 @@ struct WatermarkEditView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("地点")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(.secondary)
                             TextField("例如：XX市·XX项目部", text: $locationText)
                                 .textFieldStyle(.roundedBorder)
                         }
@@ -110,7 +109,32 @@ struct WatermarkEditView: View {
                     Button("关闭") { onDismiss() }
                 }
             }
+            .onAppear {
+                updatePreview()
+            }
+            .onChange(of: watermarkDate) { _ in
+                updatePreview()
+            }
+            .onChange(of: workContent) { _ in
+                updatePreview()
+            }
+            .onChange(of: weatherText) { _ in
+                updatePreview()
+            }
+            .onChange(of: locationText) { _ in
+                updatePreview()
+            }
         }
+    }
+
+    private func updatePreview() {
+        renderedImage = WatermarkRenderer.render(
+            image: originalImage,
+            date: watermarkDate,
+            location: locationText,
+            workContent: workContent,
+            weather: weatherText
+        )
     }
 }
 
@@ -123,7 +147,7 @@ struct WatermarkRenderer {
             image.draw(in: CGRect(origin: .zero, size: image.size))
 
             // 缩放系数
-            let scale = image.size.width / 414.0 // 以 iPhone 宽度为基准
+            let scale = image.size.width / 414.0
 
             // 时间格式化
             let formatter = DateFormatter()
@@ -138,7 +162,7 @@ struct WatermarkRenderer {
             let labelPadding: CGFloat = 10 * scale
 
             // 计算卡片高度
-            var rowCount = 3 // 工作内容、拍摄时间、天气
+            var rowCount = 3
             if !location.isEmpty { rowCount += 1 }
             let bodyHeight = rowHeight * CGFloat(rowCount) + padding * 2 + (CGFloat(rowCount) - 1) * 2 * scale
             let cardHeight = headerHeight + bodyHeight
@@ -165,7 +189,7 @@ struct WatermarkRenderer {
 
             // ---- 绘制头部 ----
             let headerRect = CGRect(x: cardX, y: cardY, width: cardWidth, height: headerHeight)
-            let headerColor = UIColor(red: 0.32, green: 0.35, blue: 0.58, alpha: 1.0) // 深蓝紫色
+            let headerColor = UIColor(red: 0.32, green: 0.35, blue: 0.58, alpha: 1.0)
             headerColor.setFill()
 
             // 裁剪头部为圆角顶部
@@ -197,22 +221,26 @@ struct WatermarkRenderer {
             let labelColor = UIColor(red: 0.3, green: 0.3, blue: 0.3, alpha: 1.0)
             let valueColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1.0)
 
-            // 标签列宽度（根据最长标签 "拍摄时间" 计算）
             let labelWidth: CGFloat = 70 * scale
             let colonWidth: CGFloat = 16 * scale
             let contentX = cardX + padding + labelWidth + colonWidth + labelPadding
             let contentWidth = cardWidth - (contentX - cardX) - padding
 
+            // 预创建段落样式
+            let rightAlign = { () -> NSMutableParagraphStyle in
+                let p = NSMutableParagraphStyle()
+                p.alignment = .right
+                return p
+            }()
+
             func drawRow(y: CGFloat, label: String, value: String) {
-                // 标签（右对齐）
-                let labelText = (label + "：") as NSString
+                let labelText = (label + "\u{FF1A}") as NSString
                 labelText.draw(in: CGRect(x: cardX + padding, y: y, width: labelWidth + colonWidth, height: rowHeight), withAttributes: [
                     .font: labelFont,
                     .foregroundColor: labelColor,
-                    .paragraphStyle: { let p = NSMutableParagraphStyle(); p.alignment = .right; return p }()
+                    .paragraphStyle: rightAlign
                 ])
 
-                // 内容
                 let valueNSString = value as NSString
                 valueNSString.draw(in: CGRect(x: contentX, y: y, width: contentWidth, height: rowHeight), withAttributes: [
                     .font: valueFont,
@@ -234,7 +262,7 @@ struct WatermarkRenderer {
             drawRow(y: currentY, label: "天气", value: weather.isEmpty ? "未知" : weather)
             currentY += rowHeight + 2 * scale
 
-            // 第四行：地点（如果有）
+            // 第四行：地点
             if !location.isEmpty {
                 drawRow(y: currentY, label: "地点", value: location)
             }
