@@ -1,0 +1,97 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '构建类型'
+        required: true
+        default: 'unsigned'
+        type: choice
+        options:
+          - unsigned
+          - signed
+      team_id:
+        description: 'Apple Team ID（仅 signed 模式需要）'
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer || true
+          xcodebuild -version
+
+      - name: Build and Archive
+        run: |
+          xcodebuild archive \
+            -project WatermarkCamera.xcodeproj \
+            -scheme WatermarkCamera \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/WatermarkCamera.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Create Unsigned IPA
+        if: ${{ github.event.inputs.build_type == 'unsigned' || github.event.inputs.build_type == '' }}
+        run: |
+          mkdir -p build/Payload
+          cp -r build/WatermarkCamera.xcarchive/Products/Applications/WatermarkCamera.app build/Payload/
+          cd build
+          zip -r WatermarkCamera-unsigned.ipa Payload/
+          echo "✅ 未签名 IPA 构建完成"
+          ls -lh WatermarkCamera-unsigned.ipa
+
+      - name: Export Signed IPA
+        if: ${{ github.event.inputs.build_type == 'signed' }}
+        run: |
+          cat > build/ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>teamID</key>
+            <string>${{ github.event.inputs.team_id || secrets.APPLE_TEAM_ID }}</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          
+          xcodebuild -exportArchive \
+            -archivePath build/WatermarkCamera.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/ipa-output \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${{ secrets.APPLE_API_KEY_PATH }}" \
+            -authenticationKeyID "${{ secrets.APPLE_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APPLE_API_ISSUER_ID }}" \
+            || echo "⚠️ 签名失败，请检查 Apple 开发者凭证配置"
+          
+          if [ -d build/ipa-output ]; then
+            cp build/ipa-output/*.ipa build/WatermarkCamera-signed.ipa 2>/dev/null || true
+            echo "✅ 签名 IPA 构建完成"
+            ls -lh build/*.ipa
+          fi
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WatermarkCamera-IPA
+          path: build/WatermarkCamera*.ipa
+          retention-days: 30
